@@ -1,5 +1,6 @@
 package com.zero.app_installer;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -12,19 +13,24 @@ import androidx.core.content.FileProvider;
 import java.io.File;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry;
 
 /**
  * AppInstallerPlugin
  */
-public class AppInstallerPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler {
+public class AppInstallerPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware , PluginRegistry.ActivityResultListener{
 
     private Context applicationContext;
+    private Activity activity;
 
     private MethodChannel channel;
 
+    private Result methodResult;
 
     /**
      * 注册插件
@@ -42,27 +48,80 @@ public class AppInstallerPlugin implements FlutterPlugin, MethodChannel.MethodCa
         channel.setMethodCallHandler(null);
     }
 
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+        binding.addActivityResultListener(this);
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        this.activity = null;
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+        binding.addActivityResultListener(this);
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        this.activity = null;
+    }
+
+
+    @Override
+    public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == 321){
+            methodResult.success(data != null);
+            methodResult = null;
+        }
+        return true;
+    }
+
+
     /**
      * 方法实现
      */
     @Override
     public void onMethodCall(MethodCall call, @NonNull Result result) {
         String method = call.method;
-        if (method.equals("goStore")) {
-            String appId = call.argument("androidAppId");
-            goAppStore(this.applicationContext, appId);
-            result.success(true);
-        } else if (method.equals("installApk")) {
-            String filePath = call.argument("apkPath");
-            if (!TextUtils.isEmpty(filePath)) {
-                assert filePath != null;
-                installApk(new File(filePath), result);
-            } else {
-                result.error("installApk", "apkPath is null", null);
-            }
-        } else {
-            result.notImplemented();
+        switch (method) {
+            case "goStore":
+                String appId = call.argument("androidAppId");
+                goAppStore(this.applicationContext, appId);
+                result.success(true);
+                break;
+            case "installApk":
+                String filePath = call.argument("apkPath");
+                if (!TextUtils.isEmpty(filePath)) {
+                    assert filePath != null;
+                    installApk(new File(filePath), result);
+                } else {
+                    result.error("installApk", "apkPath is null", null);
+                }
+                break;
+            case "unInstallApp":
+
+                String packageName = call.argument("packageName");
+                if (activity != null) {
+                    this.methodResult = result;
+                    unInstallApp(this.activity,packageName);
+                }
+                break;
+            default:
+                result.notImplemented();
+                break;
         }
+    }
+
+    private void unInstallApp(Activity activity, String packageName) {
+        Uri uri = Uri.fromParts("package", packageName, null);
+        Intent intent = new Intent(Intent.ACTION_DELETE, uri);
+        intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
+        intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+        activity.startActivityForResult(intent,321);
     }
 
     /**

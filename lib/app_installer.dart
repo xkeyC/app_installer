@@ -27,4 +27,13 @@ class AppInstaller {
       _channel.invokeMethod('installApk', {'apkPath': apkPath});
     }
   }
+
+  /// 卸载 App
+  static Future<bool> unInstallApp(String packageName) async{
+    if (Platform.isAndroid) {
+     return _channel.invokeMethod('unInstallApp', {'packageName': packageName});
+    }
+    return false;
+  }
+
 }
