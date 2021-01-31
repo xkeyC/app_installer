@@ -74,8 +74,10 @@ public class AppInstallerPlugin implements FlutterPlugin, MethodChannel.MethodCa
     @Override
     public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == 321){
-            methodResult.success(data != null);
-            methodResult = null;
+            if (methodResult != null) {
+                methodResult.success(data != null);
+                methodResult = null;
+            }
         }
         return true;
     }
@@ -103,7 +105,6 @@ public class AppInstallerPlugin implements FlutterPlugin, MethodChannel.MethodCa
                 }
                 break;
             case "unInstallApp":
-
                 String packageName = call.argument("packageName");
                 if (activity != null) {
                     this.methodResult = result;
